@@ -5,8 +5,13 @@ Maneja la sesión de SQLAlchemy y coordina los repositorios.
 
 import logging
 from types import TracebackType
+from collections.abc import Callable
 from typing import Optional, Type
 
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.domain.exceptions import ConflictError, PersistenceError
 from app.domain.interfaces.unit_of_work import IUnitOfWork
 from app.domain.interfaces.compania_repository import ICompaniaRepository
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
@@ -19,10 +24,15 @@ logger = logging.getLogger(__name__)
 
 class UnitOfWorkImpl(IUnitOfWork):
 
+    def __init__(self, session_factory: Callable[[], Session] = SessionLocal) -> None:
+        self._session_factory = session_factory
+        self._committed = False
+
     def __enter__(self) -> "UnitOfWorkImpl":
-        self._session = SessionLocal()
+        self._session = self._session_factory()
         self._companias = CompaniaRepositoryImpl(self._session)
         self._empleados = EmpleadoRepositoryImpl(self._session)
+        self._committed = False
         logger.info("[UnitOfWork] Sesión iniciada. Transacción abierta.")
         return self
 
@@ -32,8 +42,11 @@ class UnitOfWorkImpl(IUnitOfWork):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> bool:
-        if exc_type is not None:
+        if exc_type is not None and not self._committed:
             logger.warning("[UnitOfWork] Excepción detectada. Ejecutando Rollback...")
+            self.rollback()
+        elif not self._committed:
+            logger.info("[UnitOfWork] Sin commit explícito. Cerrando con rollback preventivo.")
             self.rollback()
         self._session.close()
         logger.info("[UnitOfWork] Sesión cerrada.")
@@ -49,13 +62,21 @@ class UnitOfWorkImpl(IUnitOfWork):
 
     def commit(self) -> None:
         logger.info("[UnitOfWork] Ejecutando Commit...")
-        self._session.commit()
-        logger.info("[UnitOfWork] Commit exitoso.")
+        try:
+            self._session.commit()
+            self._committed = True
+            logger.info("[UnitOfWork] Commit exitoso.")
+        except IntegrityError as exc:
+            logger.warning("[UnitOfWork] Conflicto de integridad. Ejecutando rollback.")
+            self.rollback()
+            raise ConflictError("La operacion viola una restriccion de integridad.") from exc
+        except SQLAlchemyError as exc:
+            logger.exception("[UnitOfWork] Error de persistencia. Ejecutando rollback.")
+            self.rollback()
+            raise PersistenceError("No fue posible persistir los cambios.") from exc
 
     def rollback(self) -> None:
         logger.info("[UnitOfWork] Ejecutando Rollback...")
         self._session.rollback()
+        self._committed = False
         logger.info("[UnitOfWork] Rollback completado.")
-
-    def flush(self) -> None:
-        self._session.flush()

@@ -81,17 +81,8 @@ class EmpleadoCreateAnidadoDTO(EmpleadoBase):
     pass
 
 
-class EmpleadoUpdateDTO(BaseModel):
-    """
-    Schema para actualizar un empleado existente.
-    Todos los campos son opcionales (PATCH semantics).
-    """
-
-    nombre: str | None = Field(None, min_length=1, max_length=100)
-    apellido: str | None = Field(None, min_length=1, max_length=100)
-    correo: EmailStr | None = None
-    cargo: str | None = Field(None, min_length=1, max_length=100)
-    salario: Decimal | None = Field(None, gt=Decimal("0"), max_digits=10, decimal_places=2)
+class EmpleadoUpdateDTO(EmpleadoBase):
+    """Schema para reemplazar los datos editables de un empleado."""
 
 
 # ------------------------------------------------------------------ #
