@@ -55,15 +55,8 @@ class CompaniaCreateDTO(CompaniaBase):
     pass
 
 
-class CompaniaUpdateDTO(BaseModel):
-    """
-    Schema para actualizar una compañía existente.
-    Todos los campos son opcionales (PATCH semantics).
-    """
-
-    nombre: str | None = Field(None, min_length=1, max_length=200)
-    direccion: str | None = Field(None, min_length=1, max_length=300)
-    telefono: str | None = Field(None, min_length=7, max_length=20)
+class CompaniaUpdateDTO(CompaniaBase):
+    """Schema para reemplazar los datos editables de una compañía."""
 
 
 # ------------------------------------------------------------------ #

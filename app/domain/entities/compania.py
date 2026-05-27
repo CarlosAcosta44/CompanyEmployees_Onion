@@ -1,59 +1,62 @@
 """
-Entidad de dominio: Compania
+Entidad de dominio: Compania.
 
-Representa la tabla 'companias' en la base de datos PostgreSQL.
-Define la estructura de datos de una compañía y su relación uno a muchos
-con la entidad Empleado.
+Esta clase no conoce FastAPI, SQLAlchemy, Alembic ni la base de datos.
+Es parte del nucleo de Onion Architecture y solo expresa estado y reglas
+propias del negocio.
 """
 
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
-import uuid
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
-from app.infrastructure.database.models import Base
+from app.domain.validation import ensure_required_text
+
+if TYPE_CHECKING:
+    from app.domain.entities.empleado import Empleado
 
 
-class Compania(Base):
-    """
-    Modelo SQLAlchemy que representa una compañía registrada en el sistema.
+@dataclass(slots=True)
+class Compania:
+    """Compania registrada en el sistema."""
 
-    Atributos:
-        id          -- Identificador único universal (UUID v4), llave primaria.
-        nombre      -- Nombre oficial de la compañía. Requerido.
-        direccion   -- Dirección física de la compañía. Requerido.
-        telefono    -- Número de contacto de la compañía. Requerido.
-        fecha_creacion -- Fecha y hora UTC de registro. Autogenerada.
-        empleados   -- Lista de empleados relacionados (relación 1:N).
-    """
+    nombre: str
+    direccion: str
+    telefono: str
+    id: UUID = field(default_factory=uuid4)
+    fecha_creacion: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    empleados: list[Empleado] = field(default_factory=list)
 
-    __tablename__ = "companias"
+    def __post_init__(self) -> None:
+        self.nombre = ensure_required_text(self.nombre, "nombre", max_length=200)
+        self.direccion = ensure_required_text(self.direccion, "direccion", max_length=300)
+        self.telefono = ensure_required_text(self.telefono, "telefono", min_length=7, max_length=20)
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False,
-    )
-    nombre = Column(String(200), nullable=False)
-    direccion = Column(String(300), nullable=False)
-    telefono = Column(String(20), nullable=False)
-    fecha_creacion = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
+        if self.fecha_creacion.tzinfo is None:
+            self.fecha_creacion = self.fecha_creacion.replace(tzinfo=timezone.utc)
 
-    # Relación 1:N con Empleado.
-    # cascade="all, delete-orphan" garantiza que al eliminar una compañía,
-    # todos sus empleados también se eliminen (integridad referencial en cascada).
-    empleados = relationship(
-        "Empleado",
-        back_populates="compania",
-        cascade="all, delete-orphan",
-        lazy="select",
-    )
+    def actualizar(
+        self,
+        *,
+        nombre: str | None = None,
+        direccion: str | None = None,
+        telefono: str | None = None,
+    ) -> None:
+        """Actualiza solo los campos entregados y preserva invariantes."""
 
-    def __repr__(self) -> str:
-        return f"<Compania id={self.id} nombre='{self.nombre}'>"
+        if nombre is not None:
+            self.nombre = ensure_required_text(nombre, "nombre", max_length=200)
+        if direccion is not None:
+            self.direccion = ensure_required_text(direccion, "direccion", max_length=300)
+        if telefono is not None:
+            self.telefono = ensure_required_text(telefono, "telefono", min_length=7, max_length=20)
+
+    def agregar_empleado(self, empleado: Empleado) -> None:
+        """Asocia un empleado ya construido a esta compania."""
+
+        if empleado.compania_id != self.id:
+            empleado.compania_id = self.id
+        self.empleados.append(empleado)

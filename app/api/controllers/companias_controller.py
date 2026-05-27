@@ -7,6 +7,7 @@ import logging
 from uuid import UUID
 from fastapi import APIRouter, Depends
 from app.application.services.compania_service import CompaniaService
+from app.application.services.empleado_service import EmpleadoService
 from app.application.dtos.compania_dto import (
     CompaniaCreateDTO,
     CompaniaUpdateDTO,
@@ -14,7 +15,8 @@ from app.application.dtos.compania_dto import (
     CompaniaConEmpleadosCreateDTO,
     CompaniaConEmpleadosDTO,
 )
-from app.api.dependencies import get_compania_service
+from app.application.dtos.empleado_dto import EmpleadoDTO
+from app.api.dependencies import get_compania_service, get_empleado_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/companias", tags=["Compañías"])
@@ -30,6 +32,15 @@ def listar_companias(service: CompaniaService = Depends(get_compania_service)):
 def obtener_compania(compania_id: UUID, service: CompaniaService = Depends(get_compania_service)):
     logger.info("[Controller] GET /api/companias/%s", compania_id)
     return service.obtener_por_id(compania_id)
+
+
+@router.get("/{compania_id}/empleados", response_model=list[EmpleadoDTO])
+def listar_empleados_de_compania(
+    compania_id: UUID,
+    service: EmpleadoService = Depends(get_empleado_service),
+):
+    logger.info("[Controller] GET /api/companias/%s/empleados", compania_id)
+    return service.listar_por_compania(compania_id)
 
 
 @router.post("", response_model=CompaniaDTO, status_code=201)

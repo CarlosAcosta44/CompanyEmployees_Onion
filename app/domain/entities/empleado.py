@@ -1,62 +1,57 @@
 """
-Entidad de dominio: Empleado
+Entidad de dominio: Empleado.
 
-Representa la tabla 'empleados' en la base de datos PostgreSQL.
-Define la estructura de datos de un empleado y su relación muchos a uno
-con la entidad Compania.
+La entidad es deliberadamente independiente del ORM. Las restricciones
+persistentes se configuran en Infrastructure; aqui viven las invariantes
+del negocio.
 """
 
-from sqlalchemy import Column, String, Numeric, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
-import uuid
+from __future__ import annotations
 
-from app.infrastructure.database.models import Base
+from dataclasses import dataclass, field
+from decimal import Decimal
+from uuid import UUID, uuid4
+
+from app.domain.validation import ensure_email, ensure_positive_decimal, ensure_required_text
 
 
-class Empleado(Base):
-    """
-    Modelo SQLAlchemy que representa un empleado registrado en el sistema.
+@dataclass(slots=True)
+class Empleado:
+    """Empleado perteneciente a una compania."""
 
-    Atributos:
-        id          -- Identificador único universal (UUID v4), llave primaria.
-        nombre      -- Nombre del empleado. Requerido.
-        apellido    -- Apellido del empleado. Requerido.
-        correo      -- Correo electrónico único del empleado. Requerido.
-        cargo       -- Cargo o rol del empleado dentro de la compañía. Requerido.
-        salario     -- Salario asignado al empleado (precisión decimal). Requerido.
-        compania_id -- Llave foránea hacia la compañía a la que pertenece.
-        compania    -- Referencia a la instancia de Compania relacionada.
-    """
+    nombre: str
+    apellido: str
+    correo: str
+    cargo: str
+    salario: Decimal
+    compania_id: UUID
+    id: UUID = field(default_factory=uuid4)
 
-    __tablename__ = "empleados"
+    def __post_init__(self) -> None:
+        self.nombre = ensure_required_text(self.nombre, "nombre", max_length=100)
+        self.apellido = ensure_required_text(self.apellido, "apellido", max_length=100)
+        self.correo = ensure_email(self.correo)
+        self.cargo = ensure_required_text(self.cargo, "cargo", max_length=100)
+        self.salario = ensure_positive_decimal(self.salario, "salario", max_digits=10, decimal_places=2)
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False,
-    )
-    nombre = Column(String(100), nullable=False)
-    apellido = Column(String(100), nullable=False)
-    correo = Column(String(150), nullable=False, unique=True, index=True)
-    cargo = Column(String(100), nullable=False)
+    def actualizar(
+        self,
+        *,
+        nombre: str | None = None,
+        apellido: str | None = None,
+        correo: str | None = None,
+        cargo: str | None = None,
+        salario: Decimal | None = None,
+    ) -> None:
+        """Actualiza solo los campos entregados y preserva invariantes."""
 
-    # Numeric(10, 2) garantiza precisión financiera: hasta 10 dígitos totales
-    # con 2 decimales. Evita errores de redondeo propios de Float.
-    salario = Column(Numeric(10, 2), nullable=False)
-
-    compania_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("companias.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    # Relación N:1 con Compania.
-    compania = relationship("Compania", back_populates="empleados")
-
-    def __repr__(self) -> str:
-        return (
-            f"<Empleado id={self.id} nombre='{self.nombre} {self.apellido}' "
-            f"cargo='{self.cargo}'>"
-        )
+        if nombre is not None:
+            self.nombre = ensure_required_text(nombre, "nombre", max_length=100)
+        if apellido is not None:
+            self.apellido = ensure_required_text(apellido, "apellido", max_length=100)
+        if correo is not None:
+            self.correo = ensure_email(correo)
+        if cargo is not None:
+            self.cargo = ensure_required_text(cargo, "cargo", max_length=100)
+        if salario is not None:
+            self.salario = ensure_positive_decimal(salario, "salario", max_digits=10, decimal_places=2)

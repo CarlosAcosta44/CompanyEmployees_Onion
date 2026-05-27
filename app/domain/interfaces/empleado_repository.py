@@ -35,6 +35,11 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_correo(self, correo: str) -> Optional[Empleado]:
+        """Retorna un empleado por correo electronico, o None si no existe."""
+        ...
+
+    @abstractmethod
     def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
         """
         Retorna todos los empleados que pertenecen a una compañía.

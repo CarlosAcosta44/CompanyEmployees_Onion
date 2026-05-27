@@ -1,30 +1,37 @@
-"""
-Configuración de la conexión a la base de datos PostgreSQL.
-
-Crea el engine de SQLAlchemy y el generador de sesiones (SessionLocal)
-que será usado por el Unit of Work para manejar transacciones.
-"""
+"""Configuracion de conexion para PostgreSQL o SQLite."""
 
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from app.infrastructure.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+settings = get_settings()
+DATABASE_URL = settings.database_url
 
 if not DATABASE_URL:
     raise ValueError("La variable de entorno DATABASE_URL no está definida.")
 
+engine_args = {"echo": settings.debug}
+if DATABASE_URL.startswith("sqlite"):
+    engine_args["connect_args"] = {"check_same_thread": False}
+else:
+    engine_args["pool_pre_ping"] = True
+
 engine = create_engine(
     DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
+    **engine_args
 )
+
+if DATABASE_URL.startswith("sqlite"):
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -32,4 +39,4 @@ SessionLocal = sessionmaker(
     autoflush=False,
 )
 
-logger.info("[Database] Engine configurado correctamente.")
+logger.info("[Database] Engine configurado correctamente para %s.", engine.url.get_backend_name())

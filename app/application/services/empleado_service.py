@@ -12,6 +12,7 @@ import logging
 from uuid import UUID
 from typing import Sequence
 
+from app.domain.exceptions import ConflictError, EntityNotFoundError
 from app.domain.entities.empleado import Empleado
 from app.domain.interfaces.unit_of_work import IUnitOfWork
 from app.application.dtos.empleado_dto import EmpleadoCreateDTO, EmpleadoUpdateDTO, EmpleadoDTO
@@ -48,20 +49,22 @@ class EmpleadoService:
         Retorna un empleado por su UUID.
 
         Raises:
-            ValueError: Si no existe un empleado con el ID dado.
+            EntityNotFoundError: Si no existe un empleado con el ID dado.
         """
         logger.info("[EmpleadoService] Buscando empleado id=%s.", empleado_id)
         with self._uow as uow:
             empleado = uow.empleados.get_by_id(empleado_id)
             if empleado is None:
                 logger.warning("[EmpleadoService] Empleado id=%s no encontrado.", empleado_id)
-                raise ValueError(f"Empleado con id '{empleado_id}' no encontrado.")
+                raise EntityNotFoundError(f"Empleado con id '{empleado_id}' no encontrado.")
             return EmpleadoDTO.model_validate(empleado)
 
     def listar_por_compania(self, compania_id: UUID) -> Sequence[EmpleadoDTO]:
         """Retorna todos los empleados de una compañía específica."""
         logger.info("[EmpleadoService] Listando empleados de compania_id=%s.", compania_id)
         with self._uow as uow:
+            if uow.companias.get_by_id(compania_id) is None:
+                raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
             empleados = uow.empleados.get_by_compania(compania_id)
             return [EmpleadoDTO.model_validate(e) for e in empleados]
 
@@ -81,10 +84,15 @@ class EmpleadoService:
         """
         logger.info("[EmpleadoService] Iniciando transacción: crear empleado '%s %s'.", dto.nombre, dto.apellido)
         with self._uow as uow:
+            if uow.companias.get_by_id(dto.compania_id) is None:
+                raise EntityNotFoundError(f"Compañía con id '{dto.compania_id}' no encontrada.")
+            if uow.empleados.get_by_correo(str(dto.correo)):
+                raise ConflictError(f"Ya existe un empleado con el correo '{dto.correo}'.")
+
             nuevo = Empleado(
                 nombre=dto.nombre,
                 apellido=dto.apellido,
-                correo=dto.correo,
+                correo=str(dto.correo),
                 cargo=dto.cargo,
                 salario=dto.salario,
                 compania_id=dto.compania_id,
@@ -100,21 +108,31 @@ class EmpleadoService:
 
         Args:
             empleado_id: UUID del empleado a actualizar.
-            dto: Campos a modificar (los None se ignoran).
+            dto: Datos validados para reemplazar los campos editables.
 
         Raises:
-            ValueError: Si el empleado no existe.
+            EntityNotFoundError: Si el empleado no existe.
         """
         logger.info("[EmpleadoService] Iniciando transacción: actualizar empleado id=%s.", empleado_id)
         with self._uow as uow:
             empleado = uow.empleados.get_by_id(empleado_id)
             if empleado is None:
-                raise ValueError(f"Empleado con id '{empleado_id}' no encontrado.")
+                raise EntityNotFoundError(f"Empleado con id '{empleado_id}' no encontrado.")
 
-            # Solo actualiza los campos que no son None
             datos = dto.model_dump(exclude_none=True)
-            for campo, valor in datos.items():
-                setattr(empleado, campo, valor)
+            nuevo_correo = datos.get("correo")
+            if nuevo_correo is not None:
+                existente = uow.empleados.get_by_correo(str(nuevo_correo))
+                if existente is not None and existente.id != empleado_id:
+                    raise ConflictError(f"Ya existe un empleado con el correo '{nuevo_correo}'.")
+
+            empleado.actualizar(
+                nombre=datos.get("nombre"),
+                apellido=datos.get("apellido"),
+                correo=str(nuevo_correo) if nuevo_correo is not None else None,
+                cargo=datos.get("cargo"),
+                salario=datos.get("salario"),
+            )
 
             actualizado = uow.empleados.update(empleado)
             uow.commit()
@@ -126,13 +144,13 @@ class EmpleadoService:
         Elimina un empleado por su UUID.
 
         Raises:
-            ValueError: Si el empleado no existe.
+            EntityNotFoundError: Si el empleado no existe.
         """
         logger.info("[EmpleadoService] Iniciando transacción: eliminar empleado id=%s.", empleado_id)
         with self._uow as uow:
             empleado = uow.empleados.get_by_id(empleado_id)
             if empleado is None:
-                raise ValueError(f"Empleado con id '{empleado_id}' no encontrado.")
+                raise EntityNotFoundError(f"Empleado con id '{empleado_id}' no encontrado.")
             uow.empleados.delete(empleado_id)
             uow.commit()
             logger.info("[EmpleadoService] Commit exitoso. Empleado id=%s eliminado.", empleado_id)

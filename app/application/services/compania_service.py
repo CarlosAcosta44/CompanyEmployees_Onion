@@ -13,6 +13,7 @@ import logging
 from uuid import UUID
 from typing import Sequence
 
+from app.domain.exceptions import ConflictError, EntityNotFoundError
 from app.domain.entities.compania import Compania
 from app.domain.entities.empleado import Empleado
 from app.domain.interfaces.unit_of_work import IUnitOfWork
@@ -23,6 +24,7 @@ from app.application.dtos.compania_dto import (
     CompaniaConEmpleadosCreateDTO,
     CompaniaConEmpleadosDTO,
 )
+from app.application.dtos.empleado_dto import EmpleadoDTO
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +58,14 @@ class CompaniaService:
         Retorna una compañía por su UUID.
 
         Raises:
-            ValueError: Si no existe una compañía con el ID dado.
+            EntityNotFoundError: Si no existe una compañía con el ID dado.
         """
         logger.info("[CompaniaService] Buscando compañía id=%s.", compania_id)
         with self._uow as uow:
             compania = uow.companias.get_by_id(compania_id)
             if compania is None:
                 logger.warning("[CompaniaService] Compañía id=%s no encontrada.", compania_id)
-                raise ValueError(f"Compañía con id '{compania_id}' no encontrada.")
+                raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
             return CompaniaDTO.model_validate(compania)
 
     # ------------------------------------------------------------------ #
@@ -98,20 +100,23 @@ class CompaniaService:
 
         Args:
             compania_id: UUID de la compañía a actualizar.
-            dto: Campos a modificar (los None se ignoran).
+            dto: Datos validados para reemplazar los campos editables.
 
         Raises:
-            ValueError: Si la compañía no existe.
+            EntityNotFoundError: Si la compañía no existe.
         """
         logger.info("[CompaniaService] Iniciando transacción: actualizar compañía id=%s.", compania_id)
         with self._uow as uow:
             compania = uow.companias.get_by_id(compania_id)
             if compania is None:
-                raise ValueError(f"Compañía con id '{compania_id}' no encontrada.")
+                raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
 
             datos = dto.model_dump(exclude_none=True)
-            for campo, valor in datos.items():
-                setattr(compania, campo, valor)
+            compania.actualizar(
+                nombre=datos.get("nombre"),
+                direccion=datos.get("direccion"),
+                telefono=datos.get("telefono"),
+            )
 
             actualizada = uow.companias.update(compania)
             uow.commit()
@@ -123,13 +128,13 @@ class CompaniaService:
         Elimina una compañía y todos sus empleados en cascada.
 
         Raises:
-            ValueError: Si la compañía no existe.
+            EntityNotFoundError: Si la compañía no existe.
         """
         logger.info("[CompaniaService] Iniciando transacción: eliminar compañía id=%s.", compania_id)
         with self._uow as uow:
             compania = uow.companias.get_by_id(compania_id)
             if compania is None:
-                raise ValueError(f"Compañía con id '{compania_id}' no encontrada.")
+                raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
             uow.companias.delete(compania_id)
             uow.commit()
             logger.info("[CompaniaService] Commit exitoso. Compañía id=%s eliminada.", compania_id)
@@ -147,10 +152,9 @@ class CompaniaService:
         Flujo:
             1. Abre el contexto de transacción (with self._uow as uow).
             2. Crea y persiste la entidad Compania en el repositorio.
-            3. Hace flush para que la BD asigne el UUID de la compañía
-               antes de confirmar el commit.
-            4. Itera sobre los empleados del DTO, asigna el compania_id
-               generado y los persiste uno a uno.
+            3. Usa el UUID generado por la entidad de dominio para asociar empleados.
+            4. Itera sobre los empleados del DTO, valida correos duplicados
+               y los persiste uno a uno.
             5. Llama a uow.commit() para confirmar todo de forma atómica.
             6. Si cualquier paso lanza una excepción (e.g. correo duplicado),
                el __exit__ del UoW ejecuta rollback() automáticamente,
@@ -163,7 +167,7 @@ class CompaniaService:
             La compañía creada con la lista de empleados incluida.
 
         Raises:
-            Exception: Re-lanza cualquier excepción de BD tras el rollback.
+            ConflictError: Si un correo ya existe o viene duplicado en la solicitud.
         """
         logger.info(
             "[CompaniaService] Iniciando transacción UoW: crear compañía '%s' con %d empleado(s).",
@@ -172,7 +176,6 @@ class CompaniaService:
         )
 
         with self._uow as uow:
-            # Paso 1: Crear la entidad Compania
             nueva_compania = Compania(
                 nombre=dto.nombre,
                 direccion=dto.direccion,
@@ -180,26 +183,29 @@ class CompaniaService:
             )
             compania_creada = uow.companias.create(nueva_compania)
 
-            # Paso 2: Flush para obtener el UUID asignado por la BD
-            # (La implementación concreta del repositorio debe exponer
-            #  el session.flush() para que el id esté disponible aquí.)
-            if hasattr(uow, "flush"):
-                uow.flush()
-
             compania_id = compania_creada.id
             logger.info("[CompaniaService] Compañía provisional id=%s. Procesando empleados...", compania_id)
 
-            # Paso 3: Crear cada empleado vinculándolo a la compañía
             empleados_creados = []
+            correos_en_solicitud: set[str] = set()
             for i, emp_dto in enumerate(dto.empleados, start=1):
+                correo = str(emp_dto.correo).strip().lower()
+                if correo in correos_en_solicitud:
+                    raise ConflictError(f"El correo '{correo}' esta duplicado en la solicitud.")
+                correos_en_solicitud.add(correo)
+
+                if uow.empleados.get_by_correo(correo):
+                    raise ConflictError(f"Ya existe un empleado con el correo '{correo}'.")
+
                 nuevo_empleado = Empleado(
                     nombre=emp_dto.nombre,
                     apellido=emp_dto.apellido,
-                    correo=emp_dto.correo,
+                    correo=correo,
                     cargo=emp_dto.cargo,
                     salario=emp_dto.salario,
                     compania_id=compania_id,
                 )
+                compania_creada.agregar_empleado(nuevo_empleado)
                 empleado_creado = uow.empleados.create(nuevo_empleado)
                 empleados_creados.append(empleado_creado)
                 logger.info(
@@ -207,7 +213,6 @@ class CompaniaService:
                     i, len(dto.empleados), emp_dto.nombre, emp_dto.apellido,
                 )
 
-            # Paso 4: Commit atómico — si falla aquí, __exit__ hace rollback
             uow.commit()
             logger.info(
                 "[CompaniaService] Commit exitoso. Compañía id=%s con %d empleado(s) persistidos.",
@@ -215,7 +220,6 @@ class CompaniaService:
                 len(empleados_creados),
             )
 
-            from app.application.dtos.empleado_dto import EmpleadoDTO
             return CompaniaConEmpleadosDTO(
                 id=compania_creada.id,
                 nombre=compania_creada.nombre,

@@ -1,7 +1,4 @@
-"""
-Implementación concreta del repositorio de Empleados.
-Usa SQLAlchemy para acceder a PostgreSQL.
-"""
+"""Implementacion SQLAlchemy del repositorio de empleados."""
 
 from uuid import UUID
 from typing import Optional, Sequence
@@ -9,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.domain.entities.empleado import Empleado
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
+from app.infrastructure.database.models import EmpleadoModel
+from app.infrastructure.repositories.mappers import apply_empleado, empleado_to_domain, empleado_to_model
 
 
 class EmpleadoRepositoryImpl(IEmpleadoRepository):
@@ -17,24 +16,32 @@ class EmpleadoRepositoryImpl(IEmpleadoRepository):
         self._session = session
 
     def get_all(self) -> Sequence[Empleado]:
-        return self._session.query(Empleado).all()
+        modelos = self._session.query(EmpleadoModel).all()
+        return [empleado_to_domain(modelo) for modelo in modelos]
 
     def get_by_id(self, empleado_id: UUID) -> Optional[Empleado]:
-        return self._session.query(Empleado).filter(Empleado.id == empleado_id).first()
+        modelo = self._session.get(EmpleadoModel, empleado_id)
+        return empleado_to_domain(modelo) if modelo else None
+
+    def get_by_correo(self, correo: str) -> Optional[Empleado]:
+        modelo = self._session.query(EmpleadoModel).filter(EmpleadoModel.correo == correo.strip().lower()).first()
+        return empleado_to_domain(modelo) if modelo else None
 
     def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
-        return self._session.query(Empleado).filter(Empleado.compania_id == compania_id).all()
+        modelos = self._session.query(EmpleadoModel).filter(EmpleadoModel.compania_id == compania_id).all()
+        return [empleado_to_domain(modelo) for modelo in modelos]
 
     def create(self, empleado: Empleado) -> Empleado:
-        self._session.add(empleado)
-        self._session.flush()
+        self._session.add(empleado_to_model(empleado))
         return empleado
 
     def update(self, empleado: Empleado) -> Empleado:
-        self._session.flush()
+        modelo = self._session.get(EmpleadoModel, empleado.id)
+        if modelo:
+            apply_empleado(empleado, modelo)
         return empleado
 
     def delete(self, empleado_id: UUID) -> None:
-        empleado = self.get_by_id(empleado_id)
-        if empleado:
-            self._session.delete(empleado)
+        modelo = self._session.get(EmpleadoModel, empleado_id)
+        if modelo:
+            self._session.delete(modelo)

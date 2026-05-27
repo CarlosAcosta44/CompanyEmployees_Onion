@@ -11,7 +11,7 @@ Este documento consolida la planeación técnica y el contexto para la creación
 | Concepto en ASP.NET Core | Equivalente en Python / FastAPI |
 | :--- | :--- |
 | **Controller** | FastAPI Router / Controller |
-| **Entity** | SQLAlchemy Base Model |
+| **Entity** | Entidad pura de dominio |
 | **DbContext** | SQLAlchemy Session / Engine |
 | **Migration** | Alembic |
 | **Repository Pattern** | Repository Classes |
@@ -100,7 +100,7 @@ El **Miembro A** asume la responsabilidad de diseñar, codificar y dar por final
 *   **Acción:** Desarrollar las clases de servicio que manejan las reglas de negocio reales. Estos servicios **solo** conocen la interfaz abstracta `IUnitOfWork`, por lo que son completamente independientes de la base de datos real.
     1.  **`empleado_service.py`:** Clase `EmpleadoService` que inyecta `IUnitOfWork` en su constructor. Implementa métodos de lógica para listar, crear, actualizar y eliminar empleados consultando y persistiendo a través de `uow.empleados`.
     2.  **`compania_service.py`:** Clase `CompaniaService` que inyecta `IUnitOfWork`. Implementa métodos de lógica para compañías.
-    3.  **Lógica del Caso Transaccional Obligatorio:** Implementar dentro de `CompaniaService` el método `crear_compania_con_empleados(compania_dto, lista_empleados_dto)`. Este método debe usar la estructura `with self._uow as uow:` (Context Manager), crear la compañía en el repositorio, hacer un `flush` para obtener la ID generada, asociar y crear cada empleado, y finalmente llamar a `uow.commit()`.
+    3.  **Lógica del Caso Transaccional Obligatorio:** Implementar dentro de `CompaniaService` el método `crear_compania_con_empleados(compania_dto, lista_empleados_dto)`. Este método debe usar la estructura `with self._uow as uow:` (Context Manager), crear la compañía con UUID de dominio, asociar y crear cada empleado, y finalmente llamar a `uow.commit()`.
 
 > **Hito:** Al culminar este paso, el **Miembro A** entrega un código limpio, estructurado y terminado en las carpetas `domain/` y `application/`. El código no tiene acoplamiento a base de datos y está listo para que el Miembro B continúe.
 
