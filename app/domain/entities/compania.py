@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from app.domain.exceptions import DomainValidationError
 from app.domain.validation import ensure_required_text
 
 if TYPE_CHECKING:
@@ -55,8 +56,10 @@ class Compania:
             self.telefono = ensure_required_text(telefono, "telefono", min_length=7, max_length=20)
 
     def agregar_empleado(self, empleado: Empleado) -> None:
-        """Asocia un empleado ya construido a esta compania."""
+        """Asocia un empleado ya construido a esta compania respetando el agregado."""
 
         if empleado.compania_id != self.id:
-            empleado.compania_id = self.id
+            raise DomainValidationError(
+                f"El empleado debe pertenecer a la compania '{self.id}'."
+            )
         self.empleados.append(empleado)
