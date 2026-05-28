@@ -10,7 +10,7 @@ Equivalente en C#: DTOs + FluentValidation o DataAnnotations.
 from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # ------------------------------------------------------------------ #
@@ -81,8 +81,23 @@ class EmpleadoCreateAnidadoDTO(EmpleadoBase):
     pass
 
 
-class EmpleadoUpdateDTO(EmpleadoBase):
-    """Schema para reemplazar los datos editables de un empleado."""
+class EmpleadoUpdateDTO(BaseModel):
+    """Schema para actualizar campos editables de un empleado (parcial)."""
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=100)
+    apellido: str | None = Field(default=None, min_length=1, max_length=100)
+    correo: EmailStr | None = Field(default=None)
+    cargo: str | None = Field(default=None, min_length=1, max_length=100)
+    salario: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=10, decimal_places=2)
+
+    @model_validator(mode="after")
+    def validar_al_menos_un_campo(self) -> "EmpleadoUpdateDTO":
+        if all(
+            value is None
+            for value in (self.nombre, self.apellido, self.correo, self.cargo, self.salario)
+        ):
+            raise ValueError("Debe enviar al menos un campo para actualizar el empleado.")
+        return self
 
 
 # ------------------------------------------------------------------ #
@@ -94,8 +109,6 @@ class EmpleadoDTO(EmpleadoBase):
     Schema de respuesta completo de un Empleado.
     Incluye el id y la referencia a la compañía.
     """
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Identificador único del empleado.")
     compania_id: UUID = Field(..., description="UUID de la compañía a la que pertenece.")

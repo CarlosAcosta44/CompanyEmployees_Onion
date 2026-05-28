@@ -45,3 +45,19 @@ class EmpleadoRepositoryImpl(IEmpleadoRepository):
         modelo = self._session.get(EmpleadoModel, empleado_id)
         if modelo:
             self._session.delete(modelo)
+
+    def find_by_condition(
+        self,
+        *,
+        compania_id: UUID | None = None,
+        correo: str | None = None,
+        cargo: str | None = None,
+    ) -> Sequence[Empleado]:
+        query = self._session.query(EmpleadoModel)
+        if compania_id is not None:
+            query = query.filter(EmpleadoModel.compania_id == compania_id)
+        if correo is not None:
+            query = query.filter(EmpleadoModel.correo == correo.strip().lower())
+        if cargo is not None:
+            query = query.filter(EmpleadoModel.cargo.ilike(f"%{cargo.strip()}%"))
+        return [empleado_to_domain(modelo) for modelo in query.all()]

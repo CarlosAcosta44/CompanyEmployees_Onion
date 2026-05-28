@@ -87,3 +87,14 @@ class IEmpleadoRepository(ABC):
             empleado_id: Identificador del empleado a eliminar.
         """
         ...
+
+    @abstractmethod
+    def find_by_condition(
+        self,
+        *,
+        compania_id: UUID | None = None,
+        correo: str | None = None,
+        cargo: str | None = None,
+    ) -> Sequence[Empleado]:
+        """Busca empleados que cumplan los filtros indicados (AND)."""
+        ...

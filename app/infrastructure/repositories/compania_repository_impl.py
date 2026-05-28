@@ -37,3 +37,16 @@ class CompaniaRepositoryImpl(ICompaniaRepository):
         modelo = self._session.get(CompaniaModel, compania_id)
         if modelo:
             self._session.delete(modelo)
+
+    def find_by_condition(
+        self,
+        *,
+        nombre: str | None = None,
+        telefono: str | None = None,
+    ) -> Sequence[Compania]:
+        query = self._session.query(CompaniaModel)
+        if nombre is not None:
+            query = query.filter(CompaniaModel.nombre.ilike(f"%{nombre.strip()}%"))
+        if telefono is not None:
+            query = query.filter(CompaniaModel.telefono == telefono.strip())
+        return [compania_to_domain(modelo) for modelo in query.all()]
