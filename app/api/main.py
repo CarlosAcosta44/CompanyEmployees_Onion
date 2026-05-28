@@ -7,14 +7,14 @@ from fastapi import FastAPI
 from app.api.middlewares.error_handler import ErrorHandlerMiddleware
 from app.api.controllers.companias_controller import router as companias_router
 from app.api.controllers.empleados_controller import router as empleados_router
-from app.infrastructure.config.settings import get_settings
+from app.composition_root import get_app_settings
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-settings = get_settings()
+settings = get_app_settings()
 
 app = FastAPI(
     title=settings.app_name,
