@@ -11,7 +11,7 @@ Equivalente en C#: DTOs + FluentValidation o DataAnnotations.
 from uuid import UUID
 from datetime import datetime
 from typing import List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, model_validator
 
 from app.application.dtos.empleado_dto import EmpleadoCreateAnidadoDTO, EmpleadoDTO
 
@@ -55,8 +55,18 @@ class CompaniaCreateDTO(CompaniaBase):
     pass
 
 
-class CompaniaUpdateDTO(CompaniaBase):
-    """Schema para reemplazar los datos editables de una compañía."""
+class CompaniaUpdateDTO(BaseModel):
+    """Schema para actualizar campos editables de una compania (parcial)."""
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=200)
+    direccion: str | None = Field(default=None, min_length=1, max_length=300)
+    telefono: str | None = Field(default=None, min_length=7, max_length=20)
+
+    @model_validator(mode="after")
+    def validar_al_menos_un_campo(self) -> "CompaniaUpdateDTO":
+        if self.nombre is None and self.direccion is None and self.telefono is None:
+            raise ValueError("Debe enviar al menos un campo para actualizar la compania.")
+        return self
 
 
 # ------------------------------------------------------------------ #
@@ -88,8 +98,6 @@ class CompaniaConEmpleadosCreateDTO(CompaniaBase):
 
 class CompaniaDTO(CompaniaBase):
     """Schema de respuesta básico de una Compania (sin empleados anidados)."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Identificador único de la compañía.")
     fecha_creacion: datetime = Field(..., description="Fecha y hora UTC de registro.")
