@@ -69,3 +69,13 @@ class ICompaniaRepository(ABC):
             compania_id: Identificador de la compañía a eliminar.
         """
         ...
+
+    @abstractmethod
+    def find_by_condition(
+        self,
+        *,
+        nombre: str | None = None,
+        telefono: str | None = None,
+    ) -> Sequence[Compania]:
+        """Busca compañías que cumplan los filtros indicados (AND)."""
+        ...
