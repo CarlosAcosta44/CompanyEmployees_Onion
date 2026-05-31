@@ -9,3 +9,5 @@ pydantic[email]
 python-multipart
 httpx
 pytest
+asyncpg
+aiosqlite

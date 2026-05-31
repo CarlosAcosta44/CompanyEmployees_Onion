@@ -20,12 +20,12 @@ class IEmpleadoRepository(ABC):
     """
 
     @abstractmethod
-    def get_all(self) -> Sequence[Empleado]:
+    async def get_all(self) -> Sequence[Empleado]:
         """Retorna todos los empleados registrados en el sistema."""
         ...
 
     @abstractmethod
-    def get_by_id(self, empleado_id: UUID) -> Optional[Empleado]:
+    async def get_by_id(self, empleado_id: UUID) -> Optional[Empleado]:
         """
         Retorna un empleado por su UUID, o None si no existe.
 
@@ -35,12 +35,12 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def get_by_correo(self, correo: str) -> Optional[Empleado]:
+    async def get_by_correo(self, correo: str) -> Optional[Empleado]:
         """Retorna un empleado por correo electronico, o None si no existe."""
         ...
 
     @abstractmethod
-    def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
+    async def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
         """
         Retorna todos los empleados que pertenecen a una compañía.
 
@@ -53,7 +53,7 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, empleado: Empleado) -> Empleado:
+    async def create(self, empleado: Empleado) -> Empleado:
         """
         Persiste un nuevo empleado en el repositorio.
 
@@ -66,7 +66,7 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def update(self, empleado: Empleado) -> Empleado:
+    async def update(self, empleado: Empleado) -> Empleado:
         """
         Actualiza los datos de un empleado existente.
 
@@ -79,7 +79,7 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def delete(self, empleado_id: UUID) -> None:
+    async def delete(self, empleado_id: UUID) -> None:
         """
         Elimina un empleado por su UUID.
 
@@ -89,7 +89,7 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def find_by_condition(
+    async def find_by_condition(
         self,
         *,
         compania_id: UUID | None = None,
@@ -100,21 +100,21 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
+    async def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
         """
         Agrega múltiples registros (bulk insert).
         """
         ...
 
     @abstractmethod
-    def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
+    async def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
         """
         Elimina múltiples registros por ID (bulk delete).
         """
         ...
 
     @abstractmethod
-    def get_paged(
+    async def get_paged(
         self,
         pagina: int,
         tamano: int,
@@ -130,7 +130,7 @@ class IEmpleadoRepository(ABC):
         ...
 
     @abstractmethod
-    def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
+    async def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
         """
         Actualiza campos específicos pasados como diccionario.
         Retorna el Empleado actualizado o None si no existe.

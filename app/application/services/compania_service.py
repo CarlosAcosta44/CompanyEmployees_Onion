@@ -35,39 +35,39 @@ class CompaniaService:
     def __init__(self, uow: IUnitOfWork) -> None:
         self._uow = uow
 
-    def listar_todas(self) -> Sequence[CompaniaDTO]:
+    async def listar_todas(self) -> Sequence[CompaniaDTO]:
         logger.info("[CompaniaService] Consultando todas las compañías.")
-        with self._uow as uow:
-            companias = uow.companias.get_all()
+        async with self._uow as uow:
+            companias = await uow.companias.get_all()
             logger.info("[CompaniaService] %d compañías encontradas.", len(companias))
             return [compania_to_dto(compania) for compania in companias]
 
-    def obtener_por_id(self, compania_id: UUID) -> CompaniaDTO:
+    async def obtener_por_id(self, compania_id: UUID) -> CompaniaDTO:
         logger.info("[CompaniaService] Buscando compañía id=%s.", compania_id)
-        with self._uow as uow:
-            compania = uow.companias.get_by_id(compania_id)
+        async with self._uow as uow:
+            compania = await uow.companias.get_by_id(compania_id)
             if compania is None:
                 logger.warning("[CompaniaService] Compañía id=%s no encontrada.", compania_id)
                 raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
             return compania_to_dto(compania)
 
-    def crear(self, dto: CompaniaCreateDTO) -> CompaniaDTO:
+    async def crear(self, dto: CompaniaCreateDTO) -> CompaniaDTO:
         logger.info("[CompaniaService] Iniciando transacción: crear compañía '%s'.", dto.nombre)
-        with self._uow as uow:
+        async with self._uow as uow:
             nueva = Compania(
                 nombre=dto.nombre,
                 direccion=dto.direccion,
                 telefono=dto.telefono,
             )
-            creada = uow.companias.create(nueva)
-            uow.commit()
+            creada = await uow.companias.create(nueva)
+            await uow.commit()
             logger.info("[CompaniaService] Commit exitoso. Compañía id=%s creada.", creada.id)
             return compania_to_dto(creada)
 
-    def actualizar(self, compania_id: UUID, dto: CompaniaUpdateDTO) -> CompaniaDTO:
+    async def actualizar(self, compania_id: UUID, dto: CompaniaUpdateDTO) -> CompaniaDTO:
         logger.info("[CompaniaService] Iniciando transacción: actualizar compañía id=%s.", compania_id)
-        with self._uow as uow:
-            compania = uow.companias.get_by_id(compania_id)
+        async with self._uow as uow:
+            compania = await uow.companias.get_by_id(compania_id)
             if compania is None:
                 raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
 
@@ -78,22 +78,22 @@ class CompaniaService:
                 telefono=datos.get("telefono"),
             )
 
-            actualizada = uow.companias.update(compania)
-            uow.commit()
+            actualizada = await uow.companias.update(compania)
+            await uow.commit()
             logger.info("[CompaniaService] Commit exitoso. Compañía id=%s actualizada.", compania_id)
             return compania_to_dto(actualizada)
 
-    def eliminar(self, compania_id: UUID) -> None:
+    async def eliminar(self, compania_id: UUID) -> None:
         logger.info("[CompaniaService] Iniciando transacción: eliminar compañía id=%s.", compania_id)
-        with self._uow as uow:
-            compania = uow.companias.get_by_id(compania_id)
+        async with self._uow as uow:
+            compania = await uow.companias.get_by_id(compania_id)
             if compania is None:
                 raise EntityNotFoundError(f"Compañía con id '{compania_id}' no encontrada.")
-            uow.companias.delete(compania_id)
-            uow.commit()
+            await uow.companias.delete(compania_id)
+            await uow.commit()
             logger.info("[CompaniaService] Commit exitoso. Compañía id=%s eliminada.", compania_id)
 
-    def crear_compania_con_empleados(
+    async def crear_compania_con_empleados(
         self, dto: CompaniaConEmpleadosCreateDTO
     ) -> CompaniaConEmpleadosDTO:
         logger.info(
@@ -105,19 +105,19 @@ class CompaniaService:
         correos_solicitud = [str(emp.correo) for emp in dto.empleados]
         asegurar_correos_unicos_en_solicitud(correos_solicitud)
 
-        with self._uow as uow:
+        async with self._uow as uow:
             nueva_compania = Compania(
                 nombre=dto.nombre,
                 direccion=dto.direccion,
                 telefono=dto.telefono,
             )
-            compania_creada = uow.companias.create(nueva_compania)
+            compania_creada = await uow.companias.create(nueva_compania)
             compania_id = compania_creada.id
 
             empleados_creados: list[Empleado] = []
             for i, emp_dto in enumerate(dto.empleados, start=1):
                 correo = str(emp_dto.correo).strip().lower()
-                if uow.empleados.get_by_correo(correo):
+                if await uow.empleados.get_by_correo(correo):
                     raise ConflictError(f"Ya existe un empleado con el correo '{correo}'.")
 
                 nuevo_empleado = Empleado(
@@ -129,7 +129,7 @@ class CompaniaService:
                     compania_id=compania_id,
                 )
                 compania_creada.agregar_empleado(nuevo_empleado)
-                empleados_creados.append(uow.empleados.create(nuevo_empleado))
+                empleados_creados.append(await uow.empleados.create(nuevo_empleado))
                 logger.info(
                     "[CompaniaService] Empleado %d/%d '%s %s' listo para commit.",
                     i,
@@ -138,7 +138,7 @@ class CompaniaService:
                     emp_dto.apellido,
                 )
 
-            uow.commit()
+            await uow.commit()
             logger.info(
                 "[CompaniaService] Commit exitoso. Compañía id=%s con %d empleado(s) persistidos.",
                 compania_id,
@@ -146,11 +146,11 @@ class CompaniaService:
             )
             return compania_con_empleados_to_dto(compania_creada, empleados_creados)
 
-    def listar_paginadas(
+    async def listar_paginadas(
         self, pagina: int, tamano: int, orden: str | None = None, dir: str | None = None, buscar: str | None = None
     ) -> PaginatedResponse[CompaniaDTO]:
         logger.info("[CompaniaService] Consultando compañias paginadas (pagina %d, tamano %d).", pagina, tamano)
-        with self._uow as uow:
-            companias, total = uow.companias.get_paged(pagina, tamano, orden, dir, buscar)
+        async with self._uow as uow:
+            companias, total = await uow.companias.get_paged(pagina, tamano, orden, dir, buscar)
             dtos = [compania_to_dto(c) for c in companias]
             return PaginatedResponse.create(dtos, pagina, tamano, total)
