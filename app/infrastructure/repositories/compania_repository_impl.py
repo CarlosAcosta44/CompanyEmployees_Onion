@@ -50,3 +50,38 @@ class CompaniaRepositoryImpl(ICompaniaRepository):
         if telefono is not None:
             query = query.filter(CompaniaModel.telefono == telefono.strip())
         return [compania_to_domain(modelo) for modelo in query.all()]
+
+    def get_paged(
+        self,
+        pagina: int,
+        tamano: int,
+        orden: str | None = None,
+        dir: str | None = None,
+        buscar: str | None = None,
+    ) -> tuple[Sequence[Compania], int]:
+        from sqlalchemy import or_, desc, asc
+        
+        query = self._session.query(CompaniaModel)
+        
+        if buscar:
+            termino = f"%{buscar.strip()}%"
+            query = query.filter(
+                or_(
+                    CompaniaModel.nombre.ilike(termino),
+                    CompaniaModel.direccion.ilike(termino),
+                    CompaniaModel.telefono.ilike(termino)
+                )
+            )
+            
+        total = query.count()
+        
+        if orden:
+            columna = getattr(CompaniaModel, orden, None)
+            if columna is not None:
+                if dir and dir.lower() == 'desc':
+                    query = query.order_by(desc(columna))
+                else:
+                    query = query.order_by(asc(columna))
+                    
+        modelos = query.offset((pagina - 1) * tamano).limit(tamano).all()
+        return [compania_to_domain(m) for m in modelos], total

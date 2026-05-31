@@ -61,3 +61,63 @@ class EmpleadoRepositoryImpl(IEmpleadoRepository):
         if cargo is not None:
             query = query.filter(EmpleadoModel.cargo.ilike(f"%{cargo.strip()}%"))
         return [empleado_to_domain(modelo) for modelo in query.all()]
+
+    def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
+        modelos = [empleado_to_model(emp) for emp in empleados]
+        self._session.add_all(modelos)
+        return empleados
+
+    def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
+        self._session.query(EmpleadoModel).filter(
+            EmpleadoModel.id.in_(empleado_ids)
+        ).delete(synchronize_session=False)
+
+    def get_paged(
+        self,
+        pagina: int,
+        tamano: int,
+        orden: str | None = None,
+        dir: str | None = None,
+        buscar: str | None = None,
+        compania_id: UUID | None = None,
+    ) -> tuple[Sequence[Empleado], int]:
+        from sqlalchemy import or_, desc, asc
+        
+        query = self._session.query(EmpleadoModel)
+        
+        if compania_id is not None:
+            query = query.filter(EmpleadoModel.compania_id == compania_id)
+            
+        if buscar:
+            termino = f"%{buscar.strip()}%"
+            query = query.filter(
+                or_(
+                    EmpleadoModel.nombre.ilike(termino),
+                    EmpleadoModel.apellido.ilike(termino),
+                    EmpleadoModel.correo.ilike(termino)
+                )
+            )
+            
+        total = query.count()
+        
+        if orden:
+            columna = getattr(EmpleadoModel, orden, None)
+            if columna is not None:
+                if dir and dir.lower() == 'desc':
+                    query = query.order_by(desc(columna))
+                else:
+                    query = query.order_by(asc(columna))
+                    
+        modelos = query.offset((pagina - 1) * tamano).limit(tamano).all()
+        return [empleado_to_domain(m) for m in modelos], total
+
+    def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
+        modelo = self._session.get(EmpleadoModel, empleado_id)
+        if not modelo:
+            return None
+            
+        for key, value in cambios.items():
+            if hasattr(modelo, key) and key != 'id':
+                setattr(modelo, key, value)
+                
+        return empleado_to_domain(modelo)

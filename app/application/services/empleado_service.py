@@ -9,6 +9,7 @@ from uuid import UUID
 from typing import Sequence
 
 from app.application.dtos.empleado_dto import EmpleadoCreateDTO, EmpleadoUpdateDTO, EmpleadoDTO
+from app.application.dtos.pagination_dto import PaginatedResponse
 from app.application.mappers.empleado_mapper import empleado_to_dto
 from app.domain.entities.empleado import Empleado
 from app.domain.exceptions import ConflictError, EntityNotFoundError
@@ -101,8 +102,54 @@ class EmpleadoService:
         logger.info("[EmpleadoService] Iniciando transacción: eliminar empleado id=%s.", empleado_id)
         with self._uow as uow:
             empleado = uow.empleados.get_by_id(empleado_id)
-            if empleado is None:
-                raise EntityNotFoundError(f"Empleado con id '{empleado_id}' no encontrado.")
-            uow.empleados.delete(empleado_id)
+        correos_solicitud = [str(dto.correo).strip().lower() for dto in dtos]
+        asegurar_correos_unicos_en_solicitud(correos_solicitud)
+        
+        with self._uow as uow:
+            nuevos = []
+            for dto in dtos:
+                if uow.companias.get_by_id(dto.compania_id) is None:
+                    raise EntityNotFoundError(f"Compañía con id '{dto.compania_id}' no encontrada.")
+                if uow.empleados.get_by_correo(str(dto.correo).strip().lower()):
+                    raise ConflictError(f"Ya existe un empleado con el correo '{dto.correo}'.")
+                    
+                nuevos.append(Empleado(
+                    nombre=dto.nombre,
+                    apellido=dto.apellido,
+                    correo=str(dto.correo).strip().lower(),
+                    cargo=dto.cargo,
+                    salario=dto.salario,
+                    compania_id=dto.compania_id,
+                ))
+            
+            creados = uow.empleados.create_range(nuevos)
             uow.commit()
-            logger.info("[EmpleadoService] Commit exitoso. Empleado id=%s eliminado.", empleado_id)
+            return [empleado_to_dto(e) for e in creados]
+
+    def actualizar_parcial(self, empleado_id: UUID, dto: EmpleadoUpdateDTO) -> EmpleadoDTO:
+        logger.info("[EmpleadoService] Iniciando transacción PATCH: empleado id=%s.", empleado_id)
+        with self._uow as uow:
+            datos = dto.model_dump(exclude_none=True)
+            if not datos:
+                raise ValueError("No hay campos para actualizar")
+                
+            nuevo_correo = datos.get("correo")
+            if nuevo_correo is not None:
+                correo_normalizado = str(nuevo_correo).strip().lower()
+                existente = uow.empleados.get_by_correo(correo_normalizado)
+                if existente is not None and existente.id != empleado_id:
+                    raise ConflictError(f"Ya existe un empleado con el correo '{nuevo_correo}'.")
+                datos["correo"] = correo_normalizado
+                
+            actualizado = uow.empleados.patch_partial(empleado_id, datos)
+            if actualizado is None:
+                raise EntityNotFoundError(f"Empleado con id '{empleado_id}' no encontrado.")
+                
+            uow.commit()
+            return empleado_to_dto(actualizado)
+
+    def eliminar_en_lote(self, empleado_ids: Sequence[UUID]) -> None:
+        logger.info("[EmpleadoService] Iniciando transacción bulk delete: %d empleados.", len(empleado_ids))
+        with self._uow as uow:
+            uow.empleados.delete_range(empleado_ids)
+            uow.commit()
