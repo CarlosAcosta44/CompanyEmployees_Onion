@@ -20,12 +20,12 @@ class ICompaniaRepository(ABC):
     """
 
     @abstractmethod
-    def get_all(self) -> Sequence[Compania]:
+    async def get_all(self) -> Sequence[Compania]:
         """Retorna todas las compañías registradas."""
         ...
 
     @abstractmethod
-    def get_by_id(self, compania_id: UUID) -> Optional[Compania]:
+    async def get_by_id(self, compania_id: UUID) -> Optional[Compania]:
         """
         Retorna una compañía por su UUID, o None si no existe.
 
@@ -35,7 +35,7 @@ class ICompaniaRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, compania: Compania) -> Compania:
+    async def create(self, compania: Compania) -> Compania:
         """
         Persiste una nueva compañía en el repositorio.
 
@@ -48,7 +48,7 @@ class ICompaniaRepository(ABC):
         ...
 
     @abstractmethod
-    def update(self, compania: Compania) -> Compania:
+    async def update(self, compania: Compania) -> Compania:
         """
         Actualiza los datos de una compañía existente.
 
@@ -61,7 +61,7 @@ class ICompaniaRepository(ABC):
         ...
 
     @abstractmethod
-    def delete(self, compania_id: UUID) -> None:
+    async def delete(self, compania_id: UUID) -> None:
         """
         Elimina una compañía por su UUID.
 
@@ -71,7 +71,7 @@ class ICompaniaRepository(ABC):
         ...
 
     @abstractmethod
-    def find_by_condition(
+    async def find_by_condition(
         self,
         *,
         nombre: str | None = None,
@@ -81,7 +81,7 @@ class ICompaniaRepository(ABC):
         ...
 
     @abstractmethod
-    def get_paged(
+    async def get_paged(
         self,
         pagina: int,
         tamano: int,

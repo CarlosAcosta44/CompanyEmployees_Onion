@@ -2,7 +2,8 @@
 
 from uuid import UUID
 from typing import Optional, Sequence
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, or_, desc, asc, delete
 
 from app.domain.entities.empleado import Empleado
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
@@ -12,67 +13,71 @@ from app.infrastructure.repositories.mappers import apply_empleado, empleado_to_
 
 class EmpleadoRepositoryImpl(IEmpleadoRepository):
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def get_all(self) -> Sequence[Empleado]:
-        modelos = self._session.query(EmpleadoModel).all()
-        return [empleado_to_domain(modelo) for modelo in modelos]
+    async def get_all(self) -> Sequence[Empleado]:
+        result = await self._session.execute(select(EmpleadoModel))
+        return [empleado_to_domain(modelo) for modelo in result.scalars().all()]
 
-    def get_by_id(self, empleado_id: UUID) -> Optional[Empleado]:
-        modelo = self._session.get(EmpleadoModel, empleado_id)
+    async def get_by_id(self, empleado_id: UUID) -> Optional[Empleado]:
+        modelo = await self._session.get(EmpleadoModel, empleado_id)
         return empleado_to_domain(modelo) if modelo else None
 
-    def get_by_correo(self, correo: str) -> Optional[Empleado]:
-        modelo = self._session.query(EmpleadoModel).filter(EmpleadoModel.correo == correo.strip().lower()).first()
+    async def get_by_correo(self, correo: str) -> Optional[Empleado]:
+        stmt = select(EmpleadoModel).where(EmpleadoModel.correo == correo.strip().lower())
+        result = await self._session.execute(stmt)
+        modelo = result.scalars().first()
         return empleado_to_domain(modelo) if modelo else None
 
-    def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
-        modelos = self._session.query(EmpleadoModel).filter(EmpleadoModel.compania_id == compania_id).all()
-        return [empleado_to_domain(modelo) for modelo in modelos]
+    async def get_by_compania(self, compania_id: UUID) -> Sequence[Empleado]:
+        stmt = select(EmpleadoModel).where(EmpleadoModel.compania_id == compania_id)
+        result = await self._session.execute(stmt)
+        return [empleado_to_domain(modelo) for modelo in result.scalars().all()]
 
-    def create(self, empleado: Empleado) -> Empleado:
+    async def create(self, empleado: Empleado) -> Empleado:
         self._session.add(empleado_to_model(empleado))
         return empleado
 
-    def update(self, empleado: Empleado) -> Empleado:
-        modelo = self._session.get(EmpleadoModel, empleado.id)
+    async def update(self, empleado: Empleado) -> Empleado:
+        modelo = await self._session.get(EmpleadoModel, empleado.id)
         if modelo:
             apply_empleado(empleado, modelo)
         return empleado
 
-    def delete(self, empleado_id: UUID) -> None:
-        modelo = self._session.get(EmpleadoModel, empleado_id)
+    async def delete(self, empleado_id: UUID) -> None:
+        modelo = await self._session.get(EmpleadoModel, empleado_id)
         if modelo:
-            self._session.delete(modelo)
+            await self._session.delete(modelo)
 
-    def find_by_condition(
+    async def find_by_condition(
         self,
         *,
         compania_id: UUID | None = None,
         correo: str | None = None,
         cargo: str | None = None,
     ) -> Sequence[Empleado]:
-        query = self._session.query(EmpleadoModel)
+        stmt = select(EmpleadoModel)
         if compania_id is not None:
-            query = query.filter(EmpleadoModel.compania_id == compania_id)
+            stmt = stmt.where(EmpleadoModel.compania_id == compania_id)
         if correo is not None:
-            query = query.filter(EmpleadoModel.correo == correo.strip().lower())
+            stmt = stmt.where(EmpleadoModel.correo == correo.strip().lower())
         if cargo is not None:
-            query = query.filter(EmpleadoModel.cargo.ilike(f"%{cargo.strip()}%"))
-        return [empleado_to_domain(modelo) for modelo in query.all()]
+            stmt = stmt.where(EmpleadoModel.cargo.ilike(f"%{cargo.strip()}%"))
+            
+        result = await self._session.execute(stmt)
+        return [empleado_to_domain(modelo) for modelo in result.scalars().all()]
 
-    def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
+    async def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
         modelos = [empleado_to_model(emp) for emp in empleados]
         self._session.add_all(modelos)
         return empleados
 
-    def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
-        self._session.query(EmpleadoModel).filter(
-            EmpleadoModel.id.in_(empleado_ids)
-        ).delete(synchronize_session=False)
+    async def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
+        stmt = delete(EmpleadoModel).where(EmpleadoModel.id.in_(empleado_ids))
+        await self._session.execute(stmt)
 
-    def get_paged(
+    async def get_paged(
         self,
         pagina: int,
         tamano: int,
@@ -81,16 +86,15 @@ class EmpleadoRepositoryImpl(IEmpleadoRepository):
         buscar: str | None = None,
         compania_id: UUID | None = None,
     ) -> tuple[Sequence[Empleado], int]:
-        from sqlalchemy import or_, desc, asc
         
-        query = self._session.query(EmpleadoModel)
+        stmt = select(EmpleadoModel)
         
         if compania_id is not None:
-            query = query.filter(EmpleadoModel.compania_id == compania_id)
+            stmt = stmt.where(EmpleadoModel.compania_id == compania_id)
             
         if buscar:
             termino = f"%{buscar.strip()}%"
-            query = query.filter(
+            stmt = stmt.where(
                 or_(
                     EmpleadoModel.nombre.ilike(termino),
                     EmpleadoModel.apellido.ilike(termino),
@@ -98,21 +102,25 @@ class EmpleadoRepositoryImpl(IEmpleadoRepository):
                 )
             )
             
-        total = query.count()
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = await self._session.scalar(count_stmt) or 0
         
         if orden:
             columna = getattr(EmpleadoModel, orden, None)
             if columna is not None:
                 if dir and dir.lower() == 'desc':
-                    query = query.order_by(desc(columna))
+                    stmt = stmt.order_by(desc(columna))
                 else:
-                    query = query.order_by(asc(columna))
+                    stmt = stmt.order_by(asc(columna))
                     
-        modelos = query.offset((pagina - 1) * tamano).limit(tamano).all()
+        stmt = stmt.offset((pagina - 1) * tamano).limit(tamano)
+        result = await self._session.execute(stmt)
+        modelos = result.scalars().all()
+        
         return [empleado_to_domain(m) for m in modelos], total
 
-    def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
-        modelo = self._session.get(EmpleadoModel, empleado_id)
+    async def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
+        modelo = await self._session.get(EmpleadoModel, empleado_id)
         if not modelo:
             return None
             

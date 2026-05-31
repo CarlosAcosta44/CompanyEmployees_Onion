@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import lru_cache
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.compania_service import CompaniaService
 from app.application.services.empleado_service import EmpleadoService
@@ -25,7 +25,7 @@ def get_app_settings() -> Settings:
     return get_settings()
 
 
-def build_unit_of_work(session_factory: Callable[[], Session] | None = None) -> IUnitOfWork:
+def build_unit_of_work(session_factory: Callable[[], AsyncSession] | None = None) -> IUnitOfWork:
     return UnitOfWorkImpl(session_factory or SessionLocal)
 
 

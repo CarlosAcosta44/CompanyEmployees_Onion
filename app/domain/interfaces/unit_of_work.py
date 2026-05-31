@@ -53,55 +53,38 @@ class IUnitOfWork(ABC):
     # ------------------------------------------------------------------ #
 
     @abstractmethod
-    def commit(self) -> None:
+    async def commit(self) -> None:
         """
         Confirma todos los cambios pendientes de la transacción actual.
-        Equivalente a SaveChanges() en Entity Framework Core.
         """
         ...
 
     @abstractmethod
-    def rollback(self) -> None:
+    async def rollback(self) -> None:
         """
         Deshace todos los cambios pendientes de la transacción actual.
-        Se invoca automáticamente por __exit__ cuando ocurre una excepción.
         """
         ...
 
     # ------------------------------------------------------------------ #
-    #  Context Manager                                                     #
+    #  Async Context Manager                                               #
     # ------------------------------------------------------------------ #
 
     @abstractmethod
-    def __enter__(self) -> "IUnitOfWork":
+    async def __aenter__(self) -> "IUnitOfWork":
         """
-        Inicia la transacción y retorna la instancia del UoW.
-
-        Returns:
-            Self, listo para usar dentro del bloque with.
+        Inicia la transacción asíncrona y retorna la instancia del UoW.
         """
         ...
 
     @abstractmethod
-    def __exit__(
+    async def __aexit__(
         self,
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> bool:
         """
-        Finaliza la transacción.
-
-        Si se produjo una excepción, ejecuta rollback() automáticamente
-        y deja que la excepción se propague (retorna False).
-        En caso de éxito cierra los recursos (sesión de BD).
-
-        Args:
-            exc_type: Tipo de excepción capturada, o None si no hubo error.
-            exc_val:  Instancia de la excepción, o None.
-            exc_tb:   Traceback de la excepción, o None.
-
-        Returns:
-            False para no suprimir la excepción.
+        Finaliza la transacción asíncrona.
         """
         ...

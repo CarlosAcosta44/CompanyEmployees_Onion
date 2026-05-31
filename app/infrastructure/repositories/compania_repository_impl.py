@@ -2,7 +2,8 @@
 
 from uuid import UUID
 from typing import Optional, Sequence
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, or_, desc, asc
 
 from app.domain.entities.compania import Compania
 from app.domain.interfaces.compania_repository import ICompaniaRepository
@@ -12,46 +13,49 @@ from app.infrastructure.repositories.mappers import apply_compania, compania_to_
 
 class CompaniaRepositoryImpl(ICompaniaRepository):
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def get_all(self) -> Sequence[Compania]:
-        modelos = self._session.query(CompaniaModel).all()
+    async def get_all(self) -> Sequence[Compania]:
+        result = await self._session.execute(select(CompaniaModel))
+        modelos = result.scalars().all()
         return [compania_to_domain(modelo) for modelo in modelos]
 
-    def get_by_id(self, compania_id: UUID) -> Optional[Compania]:
-        modelo = self._session.get(CompaniaModel, compania_id)
+    async def get_by_id(self, compania_id: UUID) -> Optional[Compania]:
+        modelo = await self._session.get(CompaniaModel, compania_id)
         return compania_to_domain(modelo) if modelo else None
 
-    def create(self, compania: Compania) -> Compania:
+    async def create(self, compania: Compania) -> Compania:
         self._session.add(compania_to_model(compania))
         return compania
 
-    def update(self, compania: Compania) -> Compania:
-        modelo = self._session.get(CompaniaModel, compania.id)
+    async def update(self, compania: Compania) -> Compania:
+        modelo = await self._session.get(CompaniaModel, compania.id)
         if modelo:
             apply_compania(compania, modelo)
         return compania
 
-    def delete(self, compania_id: UUID) -> None:
-        modelo = self._session.get(CompaniaModel, compania_id)
+    async def delete(self, compania_id: UUID) -> None:
+        modelo = await self._session.get(CompaniaModel, compania_id)
         if modelo:
-            self._session.delete(modelo)
+            await self._session.delete(modelo)
 
-    def find_by_condition(
+    async def find_by_condition(
         self,
         *,
         nombre: str | None = None,
         telefono: str | None = None,
     ) -> Sequence[Compania]:
-        query = self._session.query(CompaniaModel)
+        stmt = select(CompaniaModel)
         if nombre is not None:
-            query = query.filter(CompaniaModel.nombre.ilike(f"%{nombre.strip()}%"))
+            stmt = stmt.where(CompaniaModel.nombre.ilike(f"%{nombre.strip()}%"))
         if telefono is not None:
-            query = query.filter(CompaniaModel.telefono == telefono.strip())
-        return [compania_to_domain(modelo) for modelo in query.all()]
+            stmt = stmt.where(CompaniaModel.telefono == telefono.strip())
+        
+        result = await self._session.execute(stmt)
+        return [compania_to_domain(modelo) for modelo in result.scalars().all()]
 
-    def get_paged(
+    async def get_paged(
         self,
         pagina: int,
         tamano: int,
@@ -59,13 +63,12 @@ class CompaniaRepositoryImpl(ICompaniaRepository):
         dir: str | None = None,
         buscar: str | None = None,
     ) -> tuple[Sequence[Compania], int]:
-        from sqlalchemy import or_, desc, asc
         
-        query = self._session.query(CompaniaModel)
+        stmt = select(CompaniaModel)
         
         if buscar:
             termino = f"%{buscar.strip()}%"
-            query = query.filter(
+            stmt = stmt.where(
                 or_(
                     CompaniaModel.nombre.ilike(termino),
                     CompaniaModel.direccion.ilike(termino),
@@ -73,15 +76,19 @@ class CompaniaRepositoryImpl(ICompaniaRepository):
                 )
             )
             
-        total = query.count()
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = await self._session.scalar(count_stmt) or 0
         
         if orden:
             columna = getattr(CompaniaModel, orden, None)
             if columna is not None:
                 if dir and dir.lower() == 'desc':
-                    query = query.order_by(desc(columna))
+                    stmt = stmt.order_by(desc(columna))
                 else:
-                    query = query.order_by(asc(columna))
+                    stmt = stmt.order_by(asc(columna))
                     
-        modelos = query.offset((pagina - 1) * tamano).limit(tamano).all()
+        stmt = stmt.offset((pagina - 1) * tamano).limit(tamano)
+        result = await self._session.execute(stmt)
+        modelos = result.scalars().all()
+        
         return [compania_to_domain(m) for m in modelos], total
