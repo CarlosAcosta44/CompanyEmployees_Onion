@@ -79,3 +79,18 @@ class ICompaniaRepository(ABC):
     ) -> Sequence[Compania]:
         """Busca compañías que cumplan los filtros indicados (AND)."""
         ...
+
+    @abstractmethod
+    def get_paged(
+        self,
+        pagina: int,
+        tamano: int,
+        orden: str | None = None,
+        dir: str | None = None,
+        buscar: str | None = None,
+    ) -> tuple[Sequence[Compania], int]:
+        """
+        Consulta paginada, filtrada y ordenada.
+        Retorna (lista_de_companias, total_registros).
+        """
+        ...

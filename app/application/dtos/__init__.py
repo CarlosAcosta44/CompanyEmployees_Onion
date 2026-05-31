@@ -19,6 +19,7 @@ from app.application.dtos.compania_dto import (
     CompaniaConEmpleadosCreateDTO,
     CompaniaConEmpleadosDTO,
 )
+from app.application.dtos.pagination_dto import PaginatedResponse
 
 __all__ = [
     # Empleado
@@ -32,4 +33,6 @@ __all__ = [
     "CompaniaUpdateDTO",
     "CompaniaConEmpleadosCreateDTO",
     "CompaniaConEmpleadosDTO",
+    # Genéricos
+    "PaginatedResponse",
 ]

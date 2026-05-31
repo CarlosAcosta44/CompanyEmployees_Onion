@@ -17,6 +17,7 @@ from app.application.dtos.compania_dto import (
     CompaniaConEmpleadosCreateDTO,
     CompaniaConEmpleadosDTO,
 )
+from app.application.dtos.pagination_dto import PaginatedResponse
 from app.application.mappers.compania_mapper import compania_con_empleados_to_dto, compania_to_dto
 from app.application.mappers.empleado_mapper import empleado_to_dto
 from app.domain.entities.compania import Compania
@@ -144,3 +145,12 @@ class CompaniaService:
                 len(empleados_creados),
             )
             return compania_con_empleados_to_dto(compania_creada, empleados_creados)
+
+    def listar_paginadas(
+        self, pagina: int, tamano: int, orden: str | None = None, dir: str | None = None, buscar: str | None = None
+    ) -> PaginatedResponse[CompaniaDTO]:
+        logger.info("[CompaniaService] Consultando compañias paginadas (pagina %d, tamano %d).", pagina, tamano)
+        with self._uow as uow:
+            companias, total = uow.companias.get_paged(pagina, tamano, orden, dir, buscar)
+            dtos = [compania_to_dto(c) for c in companias]
+            return PaginatedResponse.create(dtos, pagina, tamano, total)

@@ -98,3 +98,41 @@ class IEmpleadoRepository(ABC):
     ) -> Sequence[Empleado]:
         """Busca empleados que cumplan los filtros indicados (AND)."""
         ...
+
+    @abstractmethod
+    def create_range(self, empleados: Sequence[Empleado]) -> Sequence[Empleado]:
+        """
+        Agrega múltiples registros (bulk insert).
+        """
+        ...
+
+    @abstractmethod
+    def delete_range(self, empleado_ids: Sequence[UUID]) -> None:
+        """
+        Elimina múltiples registros por ID (bulk delete).
+        """
+        ...
+
+    @abstractmethod
+    def get_paged(
+        self,
+        pagina: int,
+        tamano: int,
+        orden: str | None = None,
+        dir: str | None = None,
+        buscar: str | None = None,
+        compania_id: UUID | None = None,
+    ) -> tuple[Sequence[Empleado], int]:
+        """
+        Consulta paginada, filtrada y ordenada.
+        Retorna (lista_de_empleados, total_registros).
+        """
+        ...
+
+    @abstractmethod
+    def patch_partial(self, empleado_id: UUID, cambios: dict) -> Optional[Empleado]:
+        """
+        Actualiza campos específicos pasados como diccionario.
+        Retorna el Empleado actualizado o None si no existe.
+        """
+        ...
