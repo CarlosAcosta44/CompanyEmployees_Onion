@@ -8,6 +8,9 @@ implementaciones concretas de infraestructura.
 from __future__ import annotations
 from uuid import UUID
 from fastapi import Depends, Request, Body
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 from app.application.services.compania_service import CompaniaService
 from app.application.services.empleado_service import EmpleadoService
@@ -40,7 +43,7 @@ def get_auth_service() -> AuthService:
     return build_auth_service()
 
 
-def get_current_user(request: Request) -> dict:
+def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> dict:
     """Extrae la información de usuario cargada por el middleware de autenticación."""
     user = getattr(request.state, "user", None)
     if not user:

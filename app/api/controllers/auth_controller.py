@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from app.application.dtos.auth_dto import UsuarioRegisterDTO, UsuarioLoginDTO, TokenDTO, UsuarioDTO
 from app.application.services.auth_service import AuthService
 from app.api.dependencies import get_auth_service, get_current_user
+from fastapi.security import OAuth2PasswordRequestForm
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -22,8 +23,9 @@ async def registro(dto: UsuarioRegisterDTO, service: AuthService = Depends(get_a
 
 
 @router.post("/login", response_model=TokenDTO)
-async def login(dto: UsuarioLoginDTO, service: AuthService = Depends(get_auth_service)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), service: AuthService = Depends(get_auth_service)):
     logger.info("[AuthController] POST /api/auth/login")
+    dto = UsuarioLoginDTO(correo=form_data.username, password=form_data.password)
     return await service.login(dto)
 
 
