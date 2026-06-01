@@ -56,3 +56,21 @@ class EmpleadoModel(Base):
     )
 
     compania: Mapped[CompaniaModel] = relationship("CompaniaModel", back_populates="empleados")
+
+
+class UsuarioModel(Base):
+    __tablename__ = "usuarios"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    correo: Mapped[str] = mapped_column(String(150), nullable=False, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(200), nullable=False)
+    rol: Mapped[str] = mapped_column(String(50), nullable=False)
+    compania_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("companias.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    compania: Mapped[CompaniaModel | None] = relationship("CompaniaModel")
+

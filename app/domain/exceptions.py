@@ -19,3 +19,12 @@ class ConflictError(DomainError):
 
 class PersistenceError(DomainError):
     """La persistencia fallo y no se debe exponer el detalle tecnico."""
+
+
+class AuthenticationError(DomainError):
+    """Fallo en la autenticación o token inválido."""
+
+
+class ForbiddenError(DomainError):
+    """El usuario autenticado no tiene permisos suficientes para el recurso."""
+

@@ -20,6 +20,12 @@ from app.application.dtos.compania_dto import (
     CompaniaConEmpleadosDTO,
 )
 from app.application.dtos.pagination_dto import PaginatedResponse
+from app.application.dtos.auth_dto import (
+    UsuarioRegisterDTO,
+    UsuarioLoginDTO,
+    TokenDTO,
+    UsuarioDTO,
+)
 
 __all__ = [
     # Empleado
@@ -35,4 +41,9 @@ __all__ = [
     "CompaniaConEmpleadosDTO",
     # Genéricos
     "PaginatedResponse",
+    # Seguridad
+    "UsuarioRegisterDTO",
+    "UsuarioLoginDTO",
+    "TokenDTO",
+    "UsuarioDTO",
 ]

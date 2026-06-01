@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from app.domain.entities.compania import Compania
 from app.domain.entities.empleado import Empleado
-from app.infrastructure.database.models import CompaniaModel, EmpleadoModel
+from app.domain.entities.usuario import Usuario
+from app.infrastructure.database.models import CompaniaModel, EmpleadoModel, UsuarioModel
 
 
 def empleado_to_domain(model: EmpleadoModel) -> Empleado:
@@ -67,3 +68,26 @@ def apply_compania(entity: Compania, model: CompaniaModel) -> None:
     model.direccion = entity.direccion
     model.telefono = entity.telefono
     model.fecha_creacion = entity.fecha_creacion
+
+
+def usuario_to_domain(model: UsuarioModel) -> Usuario:
+    return Usuario(
+        id=model.id,
+        username=model.username,
+        correo=model.correo,
+        hashed_password=model.hashed_password,
+        rol=model.rol,
+        compania_id=model.compania_id,
+    )
+
+
+def usuario_to_model(entity: Usuario) -> UsuarioModel:
+    return UsuarioModel(
+        id=entity.id,
+        username=entity.username,
+        correo=entity.correo,
+        hashed_password=entity.hashed_password,
+        rol=entity.rol,
+        compania_id=entity.compania_id,
+    )
+

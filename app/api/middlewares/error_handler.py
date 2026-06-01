@@ -10,7 +10,14 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.domain.exceptions import ConflictError, DomainValidationError, EntityNotFoundError, PersistenceError
+from app.domain.exceptions import (
+    ConflictError,
+    DomainValidationError,
+    EntityNotFoundError,
+    PersistenceError,
+    AuthenticationError,
+    ForbiddenError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +42,18 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=404,
                 content=_respuesta_error(404, "Recurso no encontrado", str(e)),
+            )
+        except AuthenticationError as e:
+            logger.warning("[ErrorHandler] Unauthorized: %s", str(e))
+            return JSONResponse(
+                status_code=401,
+                content=_respuesta_error(401, "No autorizado", str(e)),
+            )
+        except ForbiddenError as e:
+            logger.warning("[ErrorHandler] Forbidden: %s", str(e))
+            return JSONResponse(
+                status_code=403,
+                content=_respuesta_error(403, "Acceso denegado", str(e)),
             )
         except ConflictError as e:
             logger.warning("[ErrorHandler] Conflict: %s", str(e))

@@ -9,8 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from app.api.middlewares.error_handler import ErrorHandlerMiddleware
+from app.api.middlewares.jwt_auth import JWTAuthMiddleware
 from app.api.controllers.companias_controller import router as companias_router
 from app.api.controllers.empleados_controller import router as empleados_router
+from app.api.controllers.auth_controller import router as auth_router
 from app.composition_root import get_app_settings
 
 logging.basicConfig(
@@ -27,6 +29,11 @@ app = FastAPI(
     version="2.0.0",
 )
 
+app.add_middleware(
+    JWTAuthMiddleware,
+    jwt_secret_key=settings.jwt_secret_key,
+    jwt_algorithm=settings.jwt_algorithm,
+)
 app.add_middleware(ErrorHandlerMiddleware)
 
 
@@ -89,6 +96,7 @@ async def pydantic_validation_handler(request: Request, exc: ValidationError) ->
 #  Routers                                                             #
 # ------------------------------------------------------------------ #
 
+app.include_router(auth_router, prefix="/api")
 app.include_router(companias_router, prefix="/api")
 app.include_router(empleados_router, prefix="/api")
 

@@ -16,6 +16,7 @@ from typing import Optional, Type
 
 from app.domain.interfaces.compania_repository import ICompaniaRepository
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
+from app.domain.interfaces.usuario_repository import IUsuarioRepository
 
 
 class IUnitOfWork(ABC):
@@ -46,6 +47,12 @@ class IUnitOfWork(ABC):
     @abstractmethod
     def empleados(self) -> IEmpleadoRepository:
         """Repositorio de empleados dentro de la transacción activa."""
+        ...
+
+    @property
+    @abstractmethod
+    def usuarios(self) -> IUsuarioRepository:
+        """Repositorio de usuarios dentro de la transacción activa."""
         ...
 
     # ------------------------------------------------------------------ #

@@ -11,3 +11,5 @@ httpx
 pytest
 asyncpg
 aiosqlite
+python-jose[cryptography]
+passlib[bcrypt]
