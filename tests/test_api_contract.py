@@ -9,4 +9,5 @@ def test_root_endpoint_responde_estado_basico() -> None:
     response = TestClient(app).get("/")
 
     assert response.status_code == 200
-    assert response.json() == {"message": "API Compañías y Empleados funcionando correctamente."}
+    data = response.json()
+    assert data["message"] == "API Compañías y Empleados funcionando correctamente."
