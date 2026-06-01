@@ -15,9 +15,11 @@ from app.domain.exceptions import ConflictError, PersistenceError
 from app.domain.interfaces.unit_of_work import IUnitOfWork
 from app.domain.interfaces.compania_repository import ICompaniaRepository
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
+from app.domain.interfaces.usuario_repository import IUsuarioRepository
 from app.infrastructure.database.connection import SessionLocal
 from app.infrastructure.repositories.compania_repository_impl import CompaniaRepositoryImpl
 from app.infrastructure.repositories.empleado_repository_impl import EmpleadoRepositoryImpl
+from app.infrastructure.repositories.usuario_repository_impl import UsuarioRepositoryImpl
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,7 @@ class UnitOfWorkImpl(IUnitOfWork):
         self._session = self._session_factory()
         self._companias = CompaniaRepositoryImpl(self._session)
         self._empleados = EmpleadoRepositoryImpl(self._session)
+        self._usuarios = UsuarioRepositoryImpl(self._session)
         self._committed = False
         logger.info("[UnitOfWork] Sesión iniciada. Transacción abierta.")
         return self
@@ -59,6 +62,10 @@ class UnitOfWorkImpl(IUnitOfWork):
     @property
     def empleados(self) -> IEmpleadoRepository:
         return self._empleados
+
+    @property
+    def usuarios(self) -> IUsuarioRepository:
+        return self._usuarios
 
     async def commit(self) -> None:
         logger.info("[UnitOfWork] Ejecutando Commit...")
