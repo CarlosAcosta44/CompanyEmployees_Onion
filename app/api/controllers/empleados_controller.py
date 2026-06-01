@@ -1,6 +1,6 @@
 """
 Controlador de Empleados.
-Expone los endpoints REST para gestion de empleados.
+Expone los endpoints REST para gestión de empleados.
 """
 
 import logging
@@ -9,7 +9,13 @@ from fastapi import APIRouter, Depends, Query, Body
 from app.application.services.empleado_service import EmpleadoService
 from app.application.dtos.empleado_dto import EmpleadoDTO, EmpleadoCreateDTO, EmpleadoUpdateDTO
 from app.application.dtos.pagination_dto import PaginatedResponse
-from app.api.dependencies import get_empleado_service, check_role
+from app.api.dependencies import (
+    get_empleado_service,
+    check_role,
+    verificar_propietario_crear_empleado,
+    verificar_propietario_crear_empleados_lote,
+    verificar_propietario_modificar_empleado,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/empleados", tags=["Empleados"])
@@ -17,11 +23,11 @@ router = APIRouter(prefix="/empleados", tags=["Empleados"])
 
 @router.get("", response_model=PaginatedResponse[EmpleadoDTO], dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])
 async def listar_empleados(
-    pagina: int = Query(1, ge=1, description="Numero de pagina"),
-    tamano: int = Query(10, ge=1, le=100, description="Tamano de la pagina"),
+    pagina: int = Query(1, ge=1, description="Número de página"),
+    tamano: int = Query(10, ge=1, le=100, description="Tamaño de la página"),
     orden: str | None = Query(None, description="Campo a ordenar"),
     dir: str | None = Query(None, description="asc o desc"),
-    buscar: str | None = Query(None, description="Termino de busqueda"),
+    buscar: str | None = Query(None, description="Término de búsqueda"),
     service: EmpleadoService = Depends(get_empleado_service)
 ):
     logger.info("[Controller] GET /api/empleados")
@@ -45,26 +51,44 @@ async def listar_empleados_por_compania(
     return await service.listar_paginados(pagina, tamano, compania_id=compania_id)
 
 
-@router.post("", response_model=EmpleadoDTO, status_code=201, dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])
-async def crear_empleado(dto: EmpleadoCreateDTO, service: EmpleadoService = Depends(get_empleado_service)):
+@router.post("", response_model=EmpleadoDTO, status_code=201)
+async def crear_empleado(
+    dto: EmpleadoCreateDTO,
+    service: EmpleadoService = Depends(get_empleado_service),
+    user: dict = Depends(verificar_propietario_crear_empleado),
+):
     logger.info("[Controller] POST /api/empleados")
     return await service.crear(dto)
 
 
-@router.post("/lote", response_model=list[EmpleadoDTO], status_code=201, dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])
-async def crear_empleados_lote(dtos: list[EmpleadoCreateDTO] = Body(...), service: EmpleadoService = Depends(get_empleado_service)):
+@router.post("/lote", response_model=list[EmpleadoDTO], status_code=201)
+async def crear_empleados_lote(
+    dtos: list[EmpleadoCreateDTO] = Body(...),
+    service: EmpleadoService = Depends(get_empleado_service),
+    user: dict = Depends(verificar_propietario_crear_empleados_lote),
+):
     logger.info("[Controller] POST /api/empleados/lote")
     return await service.crear_en_lote(dtos)
 
 
-@router.put("/{empleado_id}", response_model=EmpleadoDTO, dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])
-async def actualizar_empleado(empleado_id: UUID, dto: EmpleadoUpdateDTO, service: EmpleadoService = Depends(get_empleado_service)):
+@router.put("/{empleado_id}", response_model=EmpleadoDTO)
+async def actualizar_empleado(
+    empleado_id: UUID,
+    dto: EmpleadoUpdateDTO,
+    service: EmpleadoService = Depends(get_empleado_service),
+    user: dict = Depends(verificar_propietario_modificar_empleado),
+):
     logger.info("[Controller] PUT /api/empleados/%s", empleado_id)
     return await service.actualizar(empleado_id, dto)
 
 
-@router.patch("/{empleado_id}", response_model=EmpleadoDTO, dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])
-async def actualizar_empleado_parcial(empleado_id: UUID, dto: EmpleadoUpdateDTO, service: EmpleadoService = Depends(get_empleado_service)):
+@router.patch("/{empleado_id}", response_model=EmpleadoDTO)
+async def actualizar_empleado_parcial(
+    empleado_id: UUID,
+    dto: EmpleadoUpdateDTO,
+    service: EmpleadoService = Depends(get_empleado_service),
+    user: dict = Depends(verificar_propietario_modificar_empleado),
+):
     logger.info("[Controller] PATCH /api/empleados/%s", empleado_id)
     return await service.actualizar_parcial(empleado_id, dto)
 
