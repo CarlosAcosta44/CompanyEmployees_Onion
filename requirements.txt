@@ -9,6 +9,7 @@ pydantic[email]
 python-multipart
 httpx
 pytest
+pytest-asyncio
 asyncpg
 aiosqlite
 python-jose[cryptography]
