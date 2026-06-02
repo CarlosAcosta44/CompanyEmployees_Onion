@@ -37,9 +37,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        auth_header = request.headers.get("Authorization")
+        auth_header = request.headers.get("Authorization") or request.cookies.get("access_token")
         if not auth_header:
-            logger.warning("[JWTAuthMiddleware] Petición rechazada: Cabecera Authorization ausente.")
+            logger.warning("[JWTAuthMiddleware] Petición rechazada: Cabecera/Cookie Authorization ausente.")
             return JSONResponse(
                 status_code=401,
                 content={

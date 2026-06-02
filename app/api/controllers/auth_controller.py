@@ -5,7 +5,7 @@ Expone los endpoints REST para registro, login y perfil de usuarios.
 
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from app.application.dtos.auth_dto import UsuarioRegisterDTO, UsuarioLoginDTO, TokenDTO, UsuarioDTO
 from app.application.services.auth_service import AuthService
@@ -23,10 +23,23 @@ async def registro(dto: UsuarioRegisterDTO, service: AuthService = Depends(get_a
 
 
 @router.post("/login", response_model=TokenDTO)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), service: AuthService = Depends(get_auth_service)):
+async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), service: AuthService = Depends(get_auth_service)):
     logger.info("[AuthController] POST /api/auth/login")
     dto = UsuarioLoginDTO(correo=form_data.username, password=form_data.password)
-    return await service.login(dto)
+    token = await service.login(dto)
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token.access_token}",
+        httponly=True,
+        samesite="lax",
+    )
+    return token
+
+@router.post("/logout")
+async def logout(response: Response):
+    logger.info("[AuthController] POST /api/auth/logout")
+    response.delete_cookie("access_token")
+    return {"message": "Sesión cerrada exitosamente."}
 
 
 @router.get("/perfil", response_model=UsuarioDTO)
