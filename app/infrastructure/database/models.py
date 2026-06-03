@@ -66,6 +66,10 @@ class UsuarioModel(Base):
     correo: Mapped[str] = mapped_column(String(150), nullable=False, unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(200), nullable=False)
     rol: Mapped[str] = mapped_column(String(50), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    phone_number: Mapped[str] = mapped_column(String(30), nullable=False, default="")
+    ciudad: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     compania_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("companias.id", ondelete="SET NULL"),
@@ -73,4 +77,22 @@ class UsuarioModel(Base):
     )
 
     compania: Mapped[CompaniaModel | None] = relationship("CompaniaModel")
+
+
+class RefreshTokenModel(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    token: Mapped[str] = mapped_column(String(512), nullable=False, unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    is_revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
+    usuario_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    usuario: Mapped[UsuarioModel] = relationship("UsuarioModel")
+
 

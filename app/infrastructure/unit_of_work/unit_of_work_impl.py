@@ -20,6 +20,7 @@ from app.infrastructure.database.connection import SessionLocal
 from app.infrastructure.repositories.compania_repository_impl import CompaniaRepositoryImpl
 from app.infrastructure.repositories.empleado_repository_impl import EmpleadoRepositoryImpl
 from app.infrastructure.repositories.usuario_repository_impl import UsuarioRepositoryImpl
+from app.infrastructure.repositories.refresh_token_repository_impl import RefreshTokenRepositoryImpl
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class UnitOfWorkImpl(IUnitOfWork):
         self._companias = CompaniaRepositoryImpl(self._session)
         self._empleados = EmpleadoRepositoryImpl(self._session)
         self._usuarios = UsuarioRepositoryImpl(self._session)
+        self._refresh_tokens = RefreshTokenRepositoryImpl(self._session)
         self._committed = False
         logger.info("[UnitOfWork] Sesión iniciada. Transacción abierta.")
         return self
@@ -66,6 +68,10 @@ class UnitOfWorkImpl(IUnitOfWork):
     @property
     def usuarios(self) -> IUsuarioRepository:
         return self._usuarios
+
+    @property
+    def refresh_tokens(self) -> "app.domain.interfaces.refresh_token_repository.IRefreshTokenRepository":
+        return self._refresh_tokens
 
     async def commit(self) -> None:
         logger.info("[UnitOfWork] Ejecutando Commit...")

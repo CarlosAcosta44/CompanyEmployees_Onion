@@ -26,7 +26,6 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Excluir rutas públicas del chequeo de token
         if (
             path == "/"
             or path.startswith("/docs")
@@ -34,11 +33,20 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             or path.startswith("/openapi.json")
             or path == "/api/auth/registro"
             or path == "/api/auth/login"
+            or path == "/api/auth/refresh"
         ):
             return await call_next(request)
 
-        auth_header = request.headers.get("Authorization") or request.cookies.get("access_token")
+        auth_header = request.headers.get("Authorization")
+        print(f"DEBUG: PATH={path}, auth_header={auth_header}")
         if not auth_header:
+            cookie_token = request.cookies.get("access_token")
+            print(f"DEBUG: cookie_token={cookie_token}")
+            if cookie_token:
+                auth_header = f"Bearer {cookie_token}"
+                
+        if not auth_header:
+            print(f"DEBUG: Rejecting because no auth_header present")
             logger.warning("[JWTAuthMiddleware] Petición rechazada: Cabecera/Cookie Authorization ausente.")
             return JSONResponse(
                 status_code=401,
@@ -51,6 +59,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         parts = auth_header.split()
         if len(parts) != 2 or parts[0].lower() != "bearer":
+            print(f"DEBUG: Rejecting because invalid format")
             logger.warning("[JWTAuthMiddleware] Petición rechazada: Cabecera Authorization con formato inválido.")
             return JSONResponse(
                 status_code=401,
