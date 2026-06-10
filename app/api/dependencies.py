@@ -8,9 +8,9 @@ implementaciones concretas de infraestructura.
 from __future__ import annotations
 from uuid import UUID
 from fastapi import Depends, Request, Body
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = HTTPBearer(auto_error=False)
 
 from app.application.services.compania_service import CompaniaService
 from app.application.services.empleado_service import EmpleadoService

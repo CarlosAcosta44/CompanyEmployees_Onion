@@ -19,6 +19,10 @@ class Usuario:
     correo: str
     hashed_password: str
     rol: str
+    first_name: str = ""
+    last_name: str = ""
+    phone_number: str = ""
+    ciudad: str = ""
     compania_id: UUID | None = None
     id: UUID = field(default_factory=uuid4)
 

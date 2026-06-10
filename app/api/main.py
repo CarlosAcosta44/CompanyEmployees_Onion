@@ -23,6 +23,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 settings = get_app_settings()
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(
     title=settings.app_name,
     description="API REST con Onion Architecture, FastAPI, PostgreSQL y SQLite.",
@@ -34,6 +36,18 @@ app.add_middleware(
     jwt_secret_key=settings.jwt_secret_key,
     jwt_algorithm=settings.jwt_algorithm,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.add_middleware(ErrorHandlerMiddleware)
 
 

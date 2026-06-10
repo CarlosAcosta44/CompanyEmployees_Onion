@@ -77,6 +77,10 @@ def usuario_to_domain(model: UsuarioModel) -> Usuario:
         correo=model.correo,
         hashed_password=model.hashed_password,
         rol=model.rol,
+        first_name=model.first_name or "",
+        last_name=model.last_name or "",
+        phone_number=model.phone_number or "",
+        ciudad=model.ciudad or "",
         compania_id=model.compania_id,
     )
 
@@ -88,6 +92,30 @@ def usuario_to_model(entity: Usuario) -> UsuarioModel:
         correo=entity.correo,
         hashed_password=entity.hashed_password,
         rol=entity.rol,
+        first_name=entity.first_name,
+        last_name=entity.last_name,
+        phone_number=entity.phone_number,
+        ciudad=entity.ciudad,
         compania_id=entity.compania_id,
+    )
+
+def refresh_token_to_domain(model: "RefreshTokenModel") -> "app.domain.entities.refresh_token.RefreshToken":
+    from app.domain.entities.refresh_token import RefreshToken
+    return RefreshToken(
+        id=model.id,
+        token=model.token,
+        expires_at=model.expires_at,
+        usuario_id=model.usuario_id,
+        is_revoked=model.is_revoked,
+    )
+
+def refresh_token_to_model(entity: "app.domain.entities.refresh_token.RefreshToken") -> "RefreshTokenModel":
+    from app.infrastructure.database.models import RefreshTokenModel
+    return RefreshTokenModel(
+        id=entity.id,
+        token=entity.token,
+        expires_at=entity.expires_at,
+        usuario_id=entity.usuario_id,
+        is_revoked=entity.is_revoked,
     )
 

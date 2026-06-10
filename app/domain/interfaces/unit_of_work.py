@@ -17,6 +17,7 @@ from typing import Optional, Type
 from app.domain.interfaces.compania_repository import ICompaniaRepository
 from app.domain.interfaces.empleado_repository import IEmpleadoRepository
 from app.domain.interfaces.usuario_repository import IUsuarioRepository
+from app.domain.interfaces.refresh_token_repository import IRefreshTokenRepository
 
 
 class IUnitOfWork(ABC):
@@ -53,6 +54,12 @@ class IUnitOfWork(ABC):
     @abstractmethod
     def usuarios(self) -> IUsuarioRepository:
         """Repositorio de usuarios dentro de la transacción activa."""
+        ...
+
+    @property
+    @abstractmethod
+    def refresh_tokens(self) -> "IRefreshTokenRepository":
+        """Repositorio de refresh tokens dentro de la transacción activa."""
         ...
 
     # ------------------------------------------------------------------ #
