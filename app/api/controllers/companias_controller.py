@@ -14,6 +14,7 @@ from app.application.dtos.compania_dto import (
     CompaniaDTO,
     CompaniaConEmpleadosCreateDTO,
     CompaniaConEmpleadosDTO,
+    CompaniaPublicDTO,
 )
 from app.application.dtos.empleado_dto import EmpleadoDTO
 from app.application.dtos.pagination_dto import PaginatedResponse
@@ -34,6 +35,13 @@ async def listar_companias(
 ):
     logger.info("[Controller] GET /api/companias")
     return await service.listar_paginadas(pagina, tamano, orden, dir, buscar)
+
+
+@router.get("/public", response_model=list[CompaniaPublicDTO])
+async def listar_companias_publico(service: CompaniaService = Depends(get_compania_service)):
+    """Lista todas las compañías de forma pública para el registro de usuarios."""
+    logger.info("[Controller] GET /api/companias/public")
+    return await service.listar_todas()
 
 
 @router.get("/{compania_id}", response_model=CompaniaDTO, dependencies=[Depends(check_role(["ADMIN", "USUARIO"]))])

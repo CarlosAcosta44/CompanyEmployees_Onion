@@ -171,6 +171,14 @@ class CompaniaConEmpleadosCreateDTO(CompaniaBase):
 #  Schema de salida (Response)                                         #
 # ------------------------------------------------------------------ #
 
+class CompaniaPublicDTO(BaseModel):
+    """Schema de respuesta simplificado para el listado público en registro."""
+    id: UUID = Field(..., description="Identificador único de la compañía.")
+    nombre: str = Field(..., description="Nombre oficial de la compañía.")
+
+    model_config = {"from_attributes": True}
+
+
 class CompaniaDTO(CompaniaBase):
     """Schema de respuesta básico de una Compania (sin empleados anidados)."""
 
