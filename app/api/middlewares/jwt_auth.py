@@ -34,6 +34,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             or path == "/api/auth/registro"
             or path == "/api/auth/login"
             or path == "/api/auth/refresh"
+            or path == "/api/companias/public"
         ):
             return await call_next(request)
 
